@@ -89,14 +89,12 @@ init:
 
 	rm -rf tmp
 
-	mkdir -p docker docker/workspace-ex docker/php-fpm-ex docker/nginx-ex
-	echo "FROM $(PROJECT_NAME)_workspace" > docker/workspace-ex/Dockerfile
-	echo "FROM $(PROJECT_NAME)_php-fpm" > docker/php-fpm-ex/Dockerfile
-	echo "FROM $(PROJECT_NAME)_nginx" > docker/nginx-ex/Dockerfile
-
-	echo "FROM $(PROJECT_NAME)_laravel-echo-server" > docker/laravel-echo-server-ex/Dockerfile
+	echo "FROM $(PROJECT_NAME)_workspace" | cat - docker/workspace-ex/Dockerfile > temp && mv temp docker/workspace-ex/Dockerfile
+	echo "FROM $(PROJECT_NAME)_php-fpm" | cat - docker/php-fpm-ex/Dockerfile > temp && mv temp docker/php-fpm-ex/Dockerfile
+	echo "FROM $(PROJECT_NAME)_nginx" | cat - docker/nginx-ex/Dockerfile > temp && mv temp docker/nginx-ex/Dockerfile
 
 	echo "FROM $(PROJECT_NAME)_laravel-echo-server" | cat - docker/laravel-echo-server-ex/Dockerfile > temp && mv temp docker/laravel-echo-server-ex/Dockerfile
+	echo "FROM $(PROJECT_NAME)_php-fpm" | cat - docker/php-fpm-ex/Dockerfile > temp && mv temp docker/php-fpm-ex/Dockerfile
 
 
 
