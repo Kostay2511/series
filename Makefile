@@ -16,7 +16,7 @@ up-workspace:
 build-workspace:
 	@$(COMPOSE) build workspace workspace-ex
 
-laravel-install: up-workspace
+laravel-install: build-workspace up-workspace
 	@$(COMPOSE) exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/laravel /var/www/"
 
 down:
@@ -93,6 +93,9 @@ init:
 	echo "FROM $(PROJECT_NAME)_workspace" > docker/workspace-ex/Dockerfile
 	echo "FROM $(PROJECT_NAME)_php-fpm" > docker/php-fpm-ex/Dockerfile
 	echo "FROM $(PROJECT_NAME)_nginx" > docker/nginx-ex/Dockerfile
+
+	echo "FROM $(PROJECT_NAME)_laravel-echo-server" > docker/laravel-echo-server-ex/Dockerfile
+	echo "COPY laravel-echo-server.json /usr/src/app/laravel-echo-server.json" > docker/laravel-echo-server-ex/Dockerfile
 
 
 
