@@ -1,0 +1,30 @@
+version: '3'
+services:
+  workspace-ex:
+    build:
+      context: ../docker/workspace-ex
+    volumes:
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+    environment:
+      - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
+      - DOCKER_HOST=tcp://docker-in-docker:2375
+    networks:
+      - frontend
+      - backend
+    links:
+      - docker-in-docker
+
+  php-fpm-ex:
+    build:
+      context: ../docker/php-fpm-ex
+    volumes:
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+      - ../docker/php-fpm-ex/php7.3.ini:/usr/local/etc/php/php.ini
+    environment:
+      - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
+      - DOCKER_HOST=tcp://docker-in-docker:2375
+      - FAKETIME=${PHP_FPM_FAKETIME}
+    networks:
+      - backend
+    links:
+      - docker-in-docker
