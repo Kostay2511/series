@@ -82,40 +82,16 @@ init:
 	sed -i 's/MAILU_AUTH_RATELIMIT=10\/minute;1000\/hour/MAILU_AUTH_RATELIMIT="10\/minute;1000\/hour"/g' laradock/.env
 	sed -i 's/MAILU_SITENAME=Example Mail/MAILU_SITENAME="Example Mail"/g' laradock/.env
 
-	mkdir -p docker docker/workspace-ex docker/php-fpm-ex
+	git clone https://github.com/vladitot/laravel-maker.git tmp
 
+	mv tmp/docker docker
+	mv tmp/docker-compose.yml docker-compose.yml
+
+	mkdir -p docker docker/workspace-ex docker/php-fpm-ex docker/nginx-ex
 	echo "FROM $(PROJECT_NAME)_workspace" > docker/workspace-ex/Dockerfile
-
-	echo "services:" >> docker-compose.yml
-	echo "  workspace-ex:" >> docker-compose.yml
-	echo "    build:" >> docker-compose.yml
-	echo "      context: ../docker/workspace-ex" >> docker-compose.yml
-	echo "    volumes:" >> docker-compose.yml
-	echo '      - $${APP_CODE_PATH_HOST}:$${APP_CODE_PATH_CONTAINER}$${APP_CODE_CONTAINER_FLAG}' >> docker-compose.yml
-	echo "    environment:" >> docker-compose.yml
-	echo '      - PHP_IDE_CONFIG=$${PHP_IDE_CONFIG}' >> docker-compose.yml
-	echo "      - DOCKER_HOST=tcp://docker-in-docker:2375" >> docker-compose.yml
-	echo "    networks:" >> docker-compose.yml
-	echo "      - frontend" >> docker-compose.yml
-	echo "      - backend" >> docker-compose.yml
-	echo "    links:" >> docker-compose.yml
-	echo "      - docker-in-docker" >> docker-compose.yml
-
-
 	echo "FROM $(PROJECT_NAME)_php-fpm" > docker/php-fpm-ex/Dockerfile
-	cp laradock/php-fpm/php$(PHP_VERSION).ini docker/php-fpm-ex/php$(PHP_VERSION).ini
+	echo "FROM $(PROJECT_NAME)_nginx" > docker/nginx-ex/Dockerfile
 
-	echo "  php-fpm-ex:" >> docker-compose.yml
-	echo "    build:" >> docker-compose.yml
-	echo "      context: ../docker/php-fpm-ex" >> docker-compose.yml
-	echo "    volumes:" >> docker-compose.yml
-	echo '      - $${APP_CODE_PATH_HOST}:$${APP_CODE_PATH_CONTAINER}$${APP_CODE_CONTAINER_FLAG}' >> docker-compose.yml
-	echo "      - ../docker/php-fpm-ex/php$(PHP_VERSION).ini:/usr/local/etc/php/php.ini" >> docker-compose.yml
-	echo "    environment:" >> docker-compose.yml
-	echo '      - PHP_IDE_CONFIG=$${PHP_IDE_CONFIG}' >> docker-compose.yml
-	echo "      - DOCKER_HOST=tcp://docker-in-docker:2375" >> docker-compose.yml
-	echo '      - FAKETIME=$${PHP_FPM_FAKETIME}' >> docker-compose.yml
-	echo "    networks:" >> docker-compose.yml
-	echo "      - backend" >> docker-compose.yml
-	echo "    links:" >> docker-compose.yml
-	echo "      - docker-in-docker" >> docker-compose.yml
+
+
+	cp laradock/php-fpm/php$(PHP_VERSION).ini docker/php-fpm-ex/php$(PHP_VERSION).ini

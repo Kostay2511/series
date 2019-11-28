@@ -28,3 +28,61 @@ services:
       - backend
     links:
       - docker-in-docker
+
+  nginx-extended:
+    build:
+      context: ../docker/nginx
+      args:
+        COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
+    volumes:
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+      - ${NGINX_HOST_LOG_PATH}:/var/log/nginx
+      - ${NGINX_SITES_PATH}:/etc/nginx/sites-available
+      - ${NGINX_SSL_PATH}:/etc/nginx/ssl
+    ports:
+      - "${NGINX_HOST_HTTP_PORT}:80"
+      - "${NGINX_HOST_HTTPS_PORT}:443"
+    depends_on:
+      - php-fpm-ex
+    networks:
+      - frontend
+      - backend
+
+  localdb:
+    image: mariadb:10
+    ports:
+      - 3306:3306
+    tmpfs:
+      - /var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    networks:
+      - backend
+
+  localpostgres:
+    image: postgres:10
+    ports:
+      - 5432:5432
+    tmpfs:
+      - /var/lib/postgresql
+    networks:
+      - backend
+
+  selenoid:
+    build:
+      context: ../docker/selenoid
+    volumes:
+      - ../docker/selenoid/:/etc/selenoid
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
+    command: ["-container-network", "oex_new_backend", "-conf", "/etc/selenoid/browsers.json"]
+
+  selenoid-ui:
+    image: aerokube/selenoid-ui
+    ports:
+      - 8082:8080
+    command: "--selenoid-uri 'http://selenoid:4444'"
+    networks:
+      - frontend
+      - backend
