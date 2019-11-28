@@ -95,7 +95,8 @@ init:
 	echo "FROM $(PROJECT_NAME)_nginx" > docker/nginx-ex/Dockerfile
 
 	echo "FROM $(PROJECT_NAME)_laravel-echo-server" > docker/laravel-echo-server-ex/Dockerfile
-	echo "COPY laravel-echo-server.json /usr/src/app/laravel-echo-server.json" > docker/laravel-echo-server-ex/Dockerfile
+
+	echo "FROM $(PROJECT_NAME)_laravel-echo-server" | cat - docker/laravel-echo-server-ex/Dockerfile > temp && mv temp docker/laravel-echo-server-ex/Dockerfile
 
 
 
