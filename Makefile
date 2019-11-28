@@ -38,12 +38,12 @@ bash:
 
 xdebug-on:
 	@$(VARS) && $(COMPOSE) exec workspace-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini"
-	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /usr/local/etc/php$(PHP_VERSION)/conf.d/docker-php-ext-xdebug.ini"
+	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
 	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex
 
 xdebug-off:
 	@$(VARS) && $(COMPOSE) exec workspace-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini"
-	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php$(PHP_VERSION)/conf.d/docker-php-ext-xdebug.ini"
+	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
 	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex
 
 init:
@@ -63,6 +63,7 @@ init:
 	echo "WORKSPACE_INSTALL_PRESTISSIMO=true" >> .docker.env.example
 	echo "PHP_VERSION=$(PHP_VERSION)" >> .docker.env.example
 	echo "NGINX_PHP_UPSTREAM_CONTAINER=php-fpm-ex" >> .docker.env.example
+	echo "MACHINE_IP=192.168.161.199" >> .docker.env.example
 
 	cp .docker.env.example .docker.env
 
@@ -105,3 +106,8 @@ init:
 
 
 	cp laradock/php-fpm/php$(PHP_VERSION).ini docker/php-fpm-ex/php$(PHP_VERSION).ini
+	cp laradock/workspace/xdebug.ini docker/workspace-ex/xdebug.ini
+
+	sed -i 's/xdebug\.remote_connect_back/;xdebug.remote_connect_back/g' docker/workspace-ex/xdebug.ini
+	sed -i 's/; xdebug\.remote_host=dockerhost/xdebug.remote_host=dockerhost_ext/g' docker/workspace-ex/xdebug.ini
+

@@ -5,6 +5,10 @@ services:
       context: ../docker/workspace-ex
     volumes:
       - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
+      - ./../docker/workspace-ex/xdebug.ini:/etc/php/${PHP_VERSION}/cli/conf.d/xdebug.ini
+    extra_hosts:
+      - "dockerhost:${DOCKER_HOST_IP}"
+      - "dockerhost_ext:${MACHINE_IP}"
     environment:
       - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
       - DOCKER_HOST=tcp://docker-in-docker:2375
@@ -19,7 +23,7 @@ services:
       context: ../docker/php-fpm-ex
     volumes:
       - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}${APP_CODE_CONTAINER_FLAG}
-      - ../docker/php-fpm-ex/php7.3.ini:/usr/local/etc/php/php.ini
+      - ../docker/php-fpm-ex/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
     environment:
       - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
       - DOCKER_HOST=tcp://docker-in-docker:2375
