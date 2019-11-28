@@ -23,10 +23,10 @@ down:
 	@$(COMPOSE) down
 
 build:
-	@$(COMPOSE) build --parallel workspace php-fpm nginx workspace-ex php-fpm-ex
+	@$(COMPOSE) build --parallel workspace php-fpm nginx workspace-ex php-fpm-ex nginx-ex
 
 up:
-	@$(COMPOSE) up -d workspace-ex php-fpm-ex nginx
+	@$(COMPOSE) up -d workspace-ex php-fpm-ex nginx-ex laravel-horizon-ex
 
 bash:
 	@$(COMPOSE) exec -u laradock workspace-ex bash
