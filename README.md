@@ -23,4 +23,8 @@ creates boilerplate, needed files, clones laradock repository, creates .gitignor
 
 `make down` stops all containers
 
+`make xdebug-on` switches on debugger
+
+`make xdebug-off` you know, what is it, isn't it? :-)
+
 Other actions you can see in makefile. 
