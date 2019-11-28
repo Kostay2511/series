@@ -1,6 +1,6 @@
 SHELL := bash
 VARS := set -a && source laradock/.env && source .docker.env
-COMPOSE := set -a && source laradock/.env && source .docker.env && docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
+COMPOSE := docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
 
 PHP_VERSION := "7.3"
 
@@ -11,35 +11,40 @@ help:
 	@echo "help is here"
 
 up-workspace:
-	@$(COMPOSE) up -d workspace-ex
+	@$(VARS) && $(COMPOSE) up -d workspace-ex
 
 build-workspace:
-	@$(COMPOSE) build workspace workspace-ex
+	@$(VARS) && $(COMPOSE) build workspace workspace-ex || $(COMPOSE) build --no-cache workspace workspace-ex
 
 laravel-install: build-workspace up-workspace
-	@$(COMPOSE) exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/laravel /var/www/"
+	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/laravel /var/www/"
 
 down:
-	@$(COMPOSE) down
+	@$(VARS) && $(COMPOSE) down
+
+logs-nginx:
+	@$(VARS) && $(COMPOSE) logs nginx-ex
 
 build:
-	@$(COMPOSE) build --parallel workspace php-fpm nginx workspace-ex php-fpm-ex nginx-ex
+	@$(VARS) && $(COMPOSE) build php-fpm php-fpm-ex || $(COMPOSE) build --no-cache php-fpm php-fpm-ex &
+	@$(VARS) && $(COMPOSE) build workspace workspace-ex || $(COMPOSE) build --no-cache workspace workspace-ex &
+	@$(VARS) && $(COMPOSE) build nginx nginx-ex || $(COMPOSE) build --no-cache nginx nginx-ex &
 
 up:
-	@$(COMPOSE) up -d workspace-ex php-fpm-ex nginx-ex laravel-horizon-ex
+	@$(VARS) && $(COMPOSE) up -d workspace-ex php-fpm-ex nginx-ex laravel-horizon-ex
 
 bash:
-	@$(COMPOSE) exec -u laradock workspace-ex bash
+	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash
 
 xdebug-on:
-	@$(COMPOSE) exec workspace-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini"
-	@$(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /usr/local/etc/php$(PHP_VERSION)/conf.d/docker-php-ext-xdebug.ini"
-	@$(COMPOSE) restart workspace-ex php-fpm-ex
+	@$(VARS) && $(COMPOSE) exec workspace-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini"
+	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /usr/local/etc/php$(PHP_VERSION)/conf.d/docker-php-ext-xdebug.ini"
+	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex
 
 xdebug-off:
-	@$(COMPOSE) exec workspace-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini"
-	@$(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php$(PHP_VERSION)/conf.d/docker-php-ext-xdebug.ini"
-	@$(COMPOSE) restart workspace-ex php-fpm-ex
+	@$(VARS) && $(COMPOSE) exec workspace-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini"
+	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php$(PHP_VERSION)/conf.d/docker-php-ext-xdebug.ini"
+	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex
 
 init:
 	test -n "$(PROJECT_NAME)" || (echo PROJECT_NAME env is not specified && exit 1)
@@ -57,6 +62,7 @@ init:
 	echo "PHP_FPM_INSTALL_XDEBUG=true" >> .docker.env.example
 	echo "WORKSPACE_INSTALL_PRESTISSIMO=true" >> .docker.env.example
 	echo "PHP_VERSION=$(PHP_VERSION)" >> .docker.env.example
+	echo "NGINX_PHP_UPSTREAM_CONTAINER=php-fpm-ex" >> .docker.env.example
 
 	cp .docker.env.example .docker.env
 
