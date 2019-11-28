@@ -94,7 +94,7 @@ init:
 	echo "FROM $(PROJECT_NAME)_nginx" | cat - docker/nginx-ex/Dockerfile > temp && mv temp docker/nginx-ex/Dockerfile
 
 	echo "FROM $(PROJECT_NAME)_laravel-echo-server" | cat - docker/laravel-echo-server-ex/Dockerfile > temp && mv temp docker/laravel-echo-server-ex/Dockerfile
-	echo "FROM $(PROJECT_NAME)_php-fpm" | cat - docker/php-fpm-ex/Dockerfile > temp && mv temp docker/php-fpm-ex/Dockerfile
+
 
 
 
