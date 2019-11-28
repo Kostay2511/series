@@ -48,6 +48,26 @@ services:
       - frontend
       - backend
 
+  laravel-horizon-ex:
+    build:
+      context: ../docker/php-fpm-ex
+      args:
+        COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
+    volumes:
+      - ../docker/php-fpm-ex/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+      - ../docker/php-fpm-ex/supervisord.d/:/etc/supervisord.d/
+      - ../docker/php-fpm-ex/supervisor.conf:/etc/supervisor.conf
+      - ${APP_CODE_PATH_HOST}:${APP_CODE_PATH_CONTAINER}
+    environment:
+      - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
+      - DOCKER_HOST=tcp://docker-in-docker:2375
+      - FAKETIME=${PHP_FPM_FAKETIME}
+      - start_horizon=1
+    extra_hosts:
+      - "dockerhost:${DOCKER_HOST_IP}"
+    networks:
+      - backend
+
   localdb:
     image: mariadb:10
     ports:
