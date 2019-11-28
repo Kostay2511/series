@@ -29,9 +29,9 @@ services:
     links:
       - docker-in-docker
 
-  nginx-extended:
+  nginx-ex:
     build:
-      context: ../docker/nginx
+      context: ../docker/nginx-ex
       args:
         COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
     volumes:
