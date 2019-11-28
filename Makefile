@@ -32,6 +32,7 @@ build:
 
 up:
 	@$(VARS) && $(COMPOSE) up -d workspace-ex php-fpm-ex nginx-ex laravel-horizon-ex
+	make xdebug-off
 
 bash:
 	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash
@@ -48,7 +49,7 @@ xdebug-off:
 
 init:
 	test -n "$(PROJECT_NAME)" || (echo PROJECT_NAME env is not specified && exit 1)
-	rm -rf docker laradock src .docker.env .docker.env.example .gitignore docker-compose.yml
+	rm -rf docker laradock .docker.env .docker.env.example .gitignore docker-compose.yml
 #	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
 	cd laradock && git checkout cb910c590e00cee77ebbf75867aae0c7d0199119
@@ -106,8 +107,14 @@ init:
 
 
 	cp laradock/php-fpm/php$(PHP_VERSION).ini docker/php-fpm-ex/php$(PHP_VERSION).ini
+	cp laradock/php-fpm/xdebug.ini docker/php-fpm-ex/xdebug.ini
 	cp laradock/workspace/xdebug.ini docker/workspace-ex/xdebug.ini
 
 	sed -i 's/xdebug\.remote_connect_back/;xdebug.remote_connect_back/g' docker/workspace-ex/xdebug.ini
 	sed -i 's/; xdebug\.remote_host=dockerhost/xdebug.remote_host=dockerhost_ext/g' docker/workspace-ex/xdebug.ini
+	sed -i 's/xdebug\.remote_autostart=0/xdebug.remote_autostart=1/g' docker/workspace-ex/xdebug.ini
+	sed -i 's/xdebug\.remote_enable=0/xdebug.remote_enable=1/g' docker/workspace-ex/xdebug.ini
+
+	sed -i 's/xdebug\.remote_autostart=0/xdebug.remote_autostart=1/g' docker/php-fpm-ex/xdebug.ini
+	sed -i 's/xdebug\.remote_enable=0/xdebug.remote_enable=1/g' docker/php-fpm-ex/xdebug.ini
 
