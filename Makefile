@@ -31,7 +31,7 @@ build:
 	@$(VARS) && $(COMPOSE) build nginx nginx-ex || $(COMPOSE) build --no-cache nginx nginx-ex &
 
 up:
-	@$(VARS) && $(COMPOSE) up -d workspace-ex php-fpm-ex nginx-ex laravel-horizon-ex
+	@$(VARS) && $(COMPOSE) up -d workspace-ex php-fpm-ex nginx-ex laravel-horizon-ex localdb
 	make xdebug-off
 
 bash:
@@ -49,8 +49,7 @@ xdebug-off:
 
 init:
 	test -n "$(PROJECT_NAME)" || (echo PROJECT_NAME env is not specified && exit 1)
-	rm -rf docker laradock .docker.env .docker.env.example .gitignore docker-compose.yml
-#	rm -rf laradock
+	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
 	cd laradock && git checkout cb910c590e00cee77ebbf75867aae0c7d0199119
 	cp laradock/env-example laradock/.env
