@@ -19,11 +19,27 @@ build-workspace:
 laravel-install: build-workspace up-workspace
 	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/laravel /var/www/"
 
+after-clone:
+	rm -rf laradock
+	git clone https://github.com/Laradock/laradock.git
+	cd laradock && git checkout cb910c590e00cee77ebbf75867aae0c7d0199119
+	cp laradock/env-example laradock/.env
+	cp .docker.env.example .docker.env
+	make prepare-laradock-env
+	make build-workspace
+	make composer-install
+
+composer-install:
+	@$(VARS) && $(COMPOSE) run -u laradock workspace-ex bash -c "composer install"
+
 down:
 	@$(VARS) && $(COMPOSE) down
 
 logs-nginx:
 	@$(VARS) && $(COMPOSE) logs nginx-ex
+
+logs-workspace:
+	@$(VARS) && $(COMPOSE) logs workspace-ex
 
 build:
 	@$(VARS) && $(COMPOSE) build php-fpm php-fpm-ex || $(COMPOSE) build --no-cache php-fpm php-fpm-ex &
@@ -75,20 +91,7 @@ init:
 	echo "laradock" >> .gitignore
 	echo ".docker.env" >> .gitignore
 
-	sed -i 's/MSSQL_PASSWORD=yourStrong(!)Password/MSSQL_PASSWORD="yourStrong(!)Password"/g' laradock/.env
-	sed -i 's/BLACKFIRE_CLIENT_ID=<client_id>/BLACKFIRE_CLIENT_ID="<client_id>"/g' laradock/.env
-	sed -i 's/BLACKFIRE_CLIENT_TOKEN=<client_token>/BLACKFIRE_CLIENT_TOKEN="<client_token>"/g' laradock/.env
-	sed -i 's/BLACKFIRE_SERVER_ID=<server_id>/BLACKFIRE_SERVER_ID="<server_id>"/g' laradock/.env
-	sed -i 's/BLACKFIRE_SERVER_TOKEN=<server_token>/BLACKFIRE_SERVER_TOKEN="<server_token>"/g' laradock/.env
-	sed -i 's/GITLAB_RUNNER_REGISTRATION_TOKEN=<my-registration-token>/GITLAB_RUNNER_REGISTRATION_TOKEN="<my-registration-token>"/g' laradock/.env
-	sed -i 's/MAILU_RECAPTCHA_PUBLIC_KEY=<YOUR_RECAPTCHA_PUBLIC_KEY>/MAILU_RECAPTCHA_PUBLIC_KEY="<YOUR_RECAPTCHA_PUBLIC_KEY>"/g' laradock/.env
-	sed -i 's/MAILU_RECAPTCHA_PRIVATE_KEY=<YOUR_RECAPTCHA_PRIVATE_KEY>/MAILU_RECAPTCHA_PRIVATE_KEY="<YOUR_RECAPTCHA_PRIVATE_KEY>"/g' laradock/.env
-	sed -i 's/MAILU_WELCOME_SUBJECT=Welcome to your new email account/MAILU_WELCOME_SUBJECT="Welcome to your new email account"/g' laradock/.env
-	sed -i 's/MAILU_WELCOME_BODY=Welcome to your new email account, if you can read this, then it is configured properly!/MAILU_WELCOME_BODY="Welcome to your new email account, if you can read this, then it is configured properly!"/g' laradock/.env
-	sed -i 's/VARNISHD_PARAMS=-p default_ttl=3600 -p default_grace=3600/VARNISHD_PARAMS="-p default_ttl=3600 -p default_grace=3600"/g' laradock/.env
-	sed -i 's/FILTERS=\["thumbor.filters.brightness", "thumbor.filters.contrast", "thumbor.filters.rgb", "thumbor.filters.round_corner", "thumbor.filters.quality", "thumbor.filters.noise", "thumbor.filters.watermark", "thumbor.filters.equalize", "thumbor.filters.fill", "thumbor.filters.sharpen", "thumbor.filters.strip_icc", "thumbor.filters.frame", "thumbor.filters.grayscale", "thumbor.filters.rotate", "thumbor.filters.format", "thumbor.filters.max_bytes", "thumbor.filters.convolution", "thumbor.filters.blur", "thumbor.filters.extract_focal", "thumbor.filters.no_upscale"\]/FILTERS="['thumbor.filters.brightness', 'thumbor.filters.contrast', 'thumbor.filters.rgb', 'thumbor.filters.round_corner', 'thumbor.filters.quality', 'thumbor.filters.noise', 'thumbor.filters.watermark', 'thumbor.filters.equalize', 'thumbor.filters.fill', 'thumbor.filters.sharpen', 'thumbor.filters.strip_icc', 'thumbor.filters.frame', 'thumbor.filters.grayscale', 'thumbor.filters.rotate', 'thumbor.filters.format', 'thumbor.filters.max_bytes', 'thumbor.filters.convolution', 'thumbor.filters.blur', 'thumbor.filters.extract_focal', 'thumbor.filters.no_upscale']"/g' laradock/.env
-	sed -i 's/MAILU_AUTH_RATELIMIT=10\/minute;1000\/hour/MAILU_AUTH_RATELIMIT="10\/minute;1000\/hour"/g' laradock/.env
-	sed -i 's/MAILU_SITENAME=Example Mail/MAILU_SITENAME="Example Mail"/g' laradock/.env
+	make prepare-laradock-env
 
 	git clone https://github.com/vladitot/laravel-maker.git tmp
 
@@ -118,3 +121,18 @@ init:
 	sed -i 's/xdebug\.remote_autostart=0/xdebug.remote_autostart=1/g' docker/php-fpm-ex/xdebug.ini
 	sed -i 's/xdebug\.remote_enable=0/xdebug.remote_enable=1/g' docker/php-fpm-ex/xdebug.ini
 
+prepare-laradock-env:
+	sed -i 's/MSSQL_PASSWORD=yourStrong(!)Password/MSSQL_PASSWORD="yourStrong(!)Password"/g' laradock/.env
+	sed -i 's/BLACKFIRE_CLIENT_ID=<client_id>/BLACKFIRE_CLIENT_ID="<client_id>"/g' laradock/.env
+	sed -i 's/BLACKFIRE_CLIENT_TOKEN=<client_token>/BLACKFIRE_CLIENT_TOKEN="<client_token>"/g' laradock/.env
+	sed -i 's/BLACKFIRE_SERVER_ID=<server_id>/BLACKFIRE_SERVER_ID="<server_id>"/g' laradock/.env
+	sed -i 's/BLACKFIRE_SERVER_TOKEN=<server_token>/BLACKFIRE_SERVER_TOKEN="<server_token>"/g' laradock/.env
+	sed -i 's/GITLAB_RUNNER_REGISTRATION_TOKEN=<my-registration-token>/GITLAB_RUNNER_REGISTRATION_TOKEN="<my-registration-token>"/g' laradock/.env
+	sed -i 's/MAILU_RECAPTCHA_PUBLIC_KEY=<YOUR_RECAPTCHA_PUBLIC_KEY>/MAILU_RECAPTCHA_PUBLIC_KEY="<YOUR_RECAPTCHA_PUBLIC_KEY>"/g' laradock/.env
+	sed -i 's/MAILU_RECAPTCHA_PRIVATE_KEY=<YOUR_RECAPTCHA_PRIVATE_KEY>/MAILU_RECAPTCHA_PRIVATE_KEY="<YOUR_RECAPTCHA_PRIVATE_KEY>"/g' laradock/.env
+	sed -i 's/MAILU_WELCOME_SUBJECT=Welcome to your new email account/MAILU_WELCOME_SUBJECT="Welcome to your new email account"/g' laradock/.env
+	sed -i 's/MAILU_WELCOME_BODY=Welcome to your new email account, if you can read this, then it is configured properly!/MAILU_WELCOME_BODY="Welcome to your new email account, if you can read this, then it is configured properly!"/g' laradock/.env
+	sed -i 's/VARNISHD_PARAMS=-p default_ttl=3600 -p default_grace=3600/VARNISHD_PARAMS="-p default_ttl=3600 -p default_grace=3600"/g' laradock/.env
+	sed -i 's/FILTERS=\["thumbor.filters.brightness", "thumbor.filters.contrast", "thumbor.filters.rgb", "thumbor.filters.round_corner", "thumbor.filters.quality", "thumbor.filters.noise", "thumbor.filters.watermark", "thumbor.filters.equalize", "thumbor.filters.fill", "thumbor.filters.sharpen", "thumbor.filters.strip_icc", "thumbor.filters.frame", "thumbor.filters.grayscale", "thumbor.filters.rotate", "thumbor.filters.format", "thumbor.filters.max_bytes", "thumbor.filters.convolution", "thumbor.filters.blur", "thumbor.filters.extract_focal", "thumbor.filters.no_upscale"\]/FILTERS="['thumbor.filters.brightness', 'thumbor.filters.contrast', 'thumbor.filters.rgb', 'thumbor.filters.round_corner', 'thumbor.filters.quality', 'thumbor.filters.noise', 'thumbor.filters.watermark', 'thumbor.filters.equalize', 'thumbor.filters.fill', 'thumbor.filters.sharpen', 'thumbor.filters.strip_icc', 'thumbor.filters.frame', 'thumbor.filters.grayscale', 'thumbor.filters.rotate', 'thumbor.filters.format', 'thumbor.filters.max_bytes', 'thumbor.filters.convolution', 'thumbor.filters.blur', 'thumbor.filters.extract_focal', 'thumbor.filters.no_upscale']"/g' laradock/.env
+	sed -i 's/MAILU_AUTH_RATELIMIT=10\/minute;1000\/hour/MAILU_AUTH_RATELIMIT="10\/minute;1000\/hour"/g' laradock/.env
+	sed -i 's/MAILU_SITENAME=Example Mail/MAILU_SITENAME="Example Mail"/g' laradock/.env
