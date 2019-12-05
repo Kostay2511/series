@@ -6,7 +6,15 @@ Laradock images inheritance included.
 
 Ready to accept contributions.
 
-Easy to use. Just put Makefile into empty directory, than use make init, make build, make laravel-install.
+Easy to use. Just clone to your new project directory, than use make init, make build, make laravel-install.
+
+`git clone https://github.com/vladitot/laravel-maker YOUR_PROJECT_NAME`
+
+`cd YOUR_PROJECT_NAME`
+
+`make init`
+
+Enjoy!
 
 Makefile uses https://laradock.io/
 
