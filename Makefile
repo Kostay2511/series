@@ -1,8 +1,8 @@
 SHELL := bash
 VARS := set -a && source laradock/.env && source .docker.env
 COMPOSE := docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
-
-PHP_VERSION := "7.4"
+LARADOCK_COMMIT := a7faceba37028e9f54a9cef51a8e06b98225ecfc
+PHP_VERSION := "7.3"
 PROJECT_NAME := $(notdir $(patsubst %/,%,$(CURDIR)))
 
 #OFF_CMD := "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php7.3/conf.d/docker-php-ext-xdebug.ini"
@@ -15,7 +15,8 @@ up-workspace:
 	@$(VARS) && $(COMPOSE) up -d workspace-ex
 
 build-workspace:
-	@$(VARS) && $(COMPOSE) build workspace workspace-ex || $(COMPOSE) build --no-cache workspace workspace-ex
+	@$(VARS) && $(COMPOSE) build workspace || $(COMPOSE) build --no-cache workspace
+	@$(VARS) && $(COMPOSE) build workspace-ex || $(COMPOSE) build --no-cache workspace-ex
 
 laravel-install: build-workspace up-workspace
 	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/laravel /var/www/"
@@ -23,7 +24,7 @@ laravel-install: build-workspace up-workspace
 after-clone:
 	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
-	cd laradock && git checkout a7faceba37028e9f54a9cef51a8e06b98225ecfc
+	cd laradock && git checkout $(LARADOCK_COMMIT)
 	cp laradock/env-example laradock/.env
 	cp .docker.env.example .docker.env
 	make prepare-laradock-env
@@ -43,9 +44,12 @@ logs-workspace:
 	@$(VARS) && $(COMPOSE) logs workspace-ex
 
 build:
-	@$(VARS) && $(COMPOSE) build php-fpm php-fpm-ex || $(COMPOSE) build --no-cache php-fpm php-fpm-ex &
-	@$(VARS) && $(COMPOSE) build workspace workspace-ex || $(COMPOSE) build --no-cache workspace workspace-ex &
-	@$(VARS) && $(COMPOSE) build nginx nginx-ex || $(COMPOSE) build --no-cache nginx nginx-ex &
+	@$(VARS) && $(COMPOSE) build php-fpm || $(COMPOSE) build --no-cache php-fpm
+	@$(VARS) && $(COMPOSE) build php-fpm-ex || $(COMPOSE) build --no-cache php-fpm-ex
+	@$(VARS) && $(COMPOSE) build workspace || $(COMPOSE) build --no-cache workspace
+	@$(VARS) && $(COMPOSE) build workspace-ex || $(COMPOSE) build --no-cache workspace-ex
+	@$(VARS) && $(COMPOSE) build nginx || $(COMPOSE) build --no-cache nginx
+	@$(VARS) && $(COMPOSE) build nginx-ex || $(COMPOSE) build --no-cache nginx-ex
 
 up:
 	@$(VARS) && $(COMPOSE) up -d workspace-ex php-fpm-ex nginx-ex laravel-horizon-ex localdb
@@ -68,7 +72,7 @@ init:
 	test -n "$(PROJECT_NAME)" || (echo PROJECT_NAME env is not specified && exit 1)
 	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
-	cd laradock && git checkout cb910c590e00cee77ebbf75867aae0c7d0199119
+	cd laradock && git checkout $(LARADOCK_COMMIT)
 	cp laradock/env-example laradock/.env
 	mkdir -p src
 
