@@ -3,6 +3,7 @@ VARS := set -a && source laradock/.env && source .docker.env
 COMPOSE := docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
 
 PHP_VERSION := "7.4"
+PROJECT_NAME := $(notdir $(patsubst %/,%,$(CURDIR)))
 
 #OFF_CMD := "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php7.3/conf.d/docker-php-ext-xdebug.ini"
 #ON_CMD= "sed -i 's/^;zend_extension=/zend_extension=/g' /usr/local/etc/php7.3/conf.d/docker-php-ext-xdebug.ini"
@@ -22,7 +23,7 @@ laravel-install: build-workspace up-workspace
 after-clone:
 	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
-	cd laradock && git checkout cb910c590e00cee77ebbf75867aae0c7d0199119
+	cd laradock && git checkout a7faceba37028e9f54a9cef51a8e06b98225ecfc
 	cp laradock/env-example laradock/.env
 	cp .docker.env.example .docker.env
 	make prepare-laradock-env
@@ -64,7 +65,6 @@ xdebug-off:
 	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex
 
 init:
-	PROJECT_NAME=${PWD##*/}
 	test -n "$(PROJECT_NAME)" || (echo PROJECT_NAME env is not specified && exit 1)
 	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
@@ -93,7 +93,9 @@ init:
 
 	echo "FROM $(PROJECT_NAME)_laravel-echo-server" | cat - docker/laravel-echo-server-ex/Dockerfile > temp && mv temp docker/laravel-echo-server-ex/Dockerfile
 
-	cp laradock/php-fpm/php$(PHP_VERSION).ini docker/php-fpm-ex/php$(PHP_VERSION).ini
+	cp laradock/php-fpm/php$(PHP_VERSION).ini docker/php-fpm-ex/php$(PHP_VERSION).ini || cp laradock/php-fpm/php7.3.ini docker/php-fpm-ex/php$(PHP_VERSION).ini
+	# "OR" MADE SIMPLY TO TEMPORARY FIX BUG WITH EMPTY php7.4.ini file
+
 	cp laradock/php-fpm/xdebug.ini docker/php-fpm-ex/xdebug.ini
 	cp laradock/workspace/xdebug.ini docker/workspace-ex/xdebug.ini
 
