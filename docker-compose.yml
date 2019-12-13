@@ -64,7 +64,7 @@ services:
       - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
       - DOCKER_HOST=tcp://docker-in-docker:2375
       - FAKETIME=${PHP_FPM_FAKETIME}
-      - start_horizon=1
+      - START_HORIZON_INSTEAD_OF_FPM=1
     extra_hosts:
       - "dockerhost:${DOCKER_HOST_IP}"
     networks:

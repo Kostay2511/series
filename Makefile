@@ -5,8 +5,6 @@ LARADOCK_COMMIT := a7faceba37028e9f54a9cef51a8e06b98225ecfc
 PHP_VERSION := "7.3"
 PROJECT_NAME := $(notdir $(patsubst %/,%,$(CURDIR)))
 
-#OFF_CMD := "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php7.3/conf.d/docker-php-ext-xdebug.ini"
-#ON_CMD= "sed -i 's/^;zend_extension=/zend_extension=/g' /usr/local/etc/php7.3/conf.d/docker-php-ext-xdebug.ini"
 
 help:
 	@echo "help is here"
@@ -43,17 +41,18 @@ logs-nginx:
 logs-workspace:
 	@$(VARS) && $(COMPOSE) logs workspace-ex
 
-build:
-	@$(VARS) && $(COMPOSE) build php-fpm || $(COMPOSE) build --no-cache php-fpm
-	@$(VARS) && $(COMPOSE) build php-fpm-ex || $(COMPOSE) build --no-cache php-fpm-ex
-	@$(VARS) && $(COMPOSE) build workspace || $(COMPOSE) build --no-cache workspace
-	@$(VARS) && $(COMPOSE) build workspace-ex || $(COMPOSE) build --no-cache workspace-ex
-	@$(VARS) && $(COMPOSE) build nginx || $(COMPOSE) build --no-cache nginx
-	@$(VARS) && $(COMPOSE) build nginx-ex || $(COMPOSE) build --no-cache nginx-ex
+ifeq (build,$(firstword $(MAKECMDGOALS)))
+  # use the rest as arguments for "run"
+  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  # ...and turn them into do-nothing targets
+  $(eval $(RUN_ARGS):;@:)
+endif
 
-up:
-	@$(VARS) && $(COMPOSE) up -d workspace-ex php-fpm-ex nginx-ex laravel-horizon-ex localdb
-	make xdebug-off
+build:
+	@test -n "$(RUN_ARGS)" || (echo CONTAINERS is not specified. Use \"make build local\" for example && exit 1)
+	while read line; \
+		do [ ! -z "$$line" ] && $(VARS) && $(COMPOSE) build "$$line" || $(COMPOSE) build --no-cache "$$line" || ""; \
+		done < docker/config/$(RUN_ARGS)/build
 
 bash:
 	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash
@@ -130,7 +129,6 @@ prepare-laradock-env:
 	sed -i 's/MAILU_SITENAME=Example Mail/MAILU_SITENAME="Example Mail"/g' laradock/.env
 
 
-# If the first argument is "run"...
 ifeq (log,$(firstword $(MAKECMDGOALS)))
   # use the rest as arguments for "run"
   RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
@@ -140,3 +138,17 @@ endif
 
 log:
 	@$(VARS) && $(COMPOSE) logs $(RUN_ARGS)
+
+
+ifeq (up,$(firstword $(MAKECMDGOALS)))
+  # use the rest as arguments for "run"
+  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  # ...and turn them into do-nothing targets
+  $(eval $(RUN_ARGS):;@:)
+endif
+
+up:
+	$(eval CONTAINERS := $(subst \n, ,$(shell cat docker/config/$(RUN_ARGS)/up)))
+	@test -n "$(CONTAINERS)" || (echo CONTAINERS is not specified. Use \"make up local\" for example && exit 1)
+	@$(VARS) && $(COMPOSE) up -d $(CONTAINERS)
+	make xdebug-off

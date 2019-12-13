@@ -1,0 +1,8 @@
+workspace
+workspace-ex
+php-fpm
+php-fpm-ex
+nginx
+nginx-ex
+
+

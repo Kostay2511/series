@@ -1,4 +1,4 @@
-if [ -z ${start_horizon+x} ];then
+if [ -z ${START_HORIZON_INSTEAD_OF_FPM+x} ];then
     echo "starting FPM"
     php-fpm
 else
