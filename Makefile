@@ -1,11 +1,9 @@
 SHELL := bash
 VARS := set -a && source laradock/.env && source .docker.env
 COMPOSE := docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
-
-PHP_VERSION := "7.3"
-
-#OFF_CMD := "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php7.3/conf.d/docker-php-ext-xdebug.ini"
-#ON_CMD= "sed -i 's/^;zend_extension=/zend_extension=/g' /usr/local/etc/php7.3/conf.d/docker-php-ext-xdebug.ini"
+LARADOCK_COMMIT := v9.1
+-include .docker.env
+PROJECT_NAME := $(notdir $(patsubst %/,%,$(CURDIR)))
 
 help:
 	@echo "help is here"
@@ -14,20 +12,36 @@ up-workspace:
 	@$(VARS) && $(COMPOSE) up -d workspace-ex
 
 build-workspace:
-	@$(VARS) && $(COMPOSE) build workspace workspace-ex || $(COMPOSE) build --no-cache workspace workspace-ex
+	@$(VARS) && $(COMPOSE) build workspace || $(COMPOSE) build --no-cache workspace
+	@$(VARS) && $(COMPOSE) build workspace-ex || $(COMPOSE) build --no-cache workspace-ex
+
+zero-install: build-workspace up-workspace
+	@$(VARS) && $(COMPOSE) \
+	exec -u laradock workspace-ex bash -c "rm -rf /var/www/{,.[^.]}* && composer create-project --prefer-dist laravel-zero/laravel-zero $(PROJECT_NAME) && \
+		mv $(PROJECT_NAME) $(PROJECT_NAME)_ && mv $(PROJECT_NAME)_/{,.[^.]}* /var/www/ && rm -rf $(PROJECT_NAME)_" || true
+	@$(VARS) && $(COMPOSE) down
+
+lumen-install: build-workspace up-workspace
+	rm -rf /var/www/{,.[^.]}*
+	@$(VARS) && $(COMPOSE) \
+    	exec -u laradock workspace-ex bash -c "rm -rf /var/www/{,.[^.]}* && composer create-project --prefer-dist laravel/lumen $(PROJECT_NAME) && \
+    		mv $(PROJECT_NAME) $(PROJECT_NAME)_ && mv $(PROJECT_NAME)_/{,.[^.]}* /var/www/ && rm -rf $(PROJECT_NAME)_" || true
+	@$(VARS) && $(COMPOSE) down
 
 laravel-install: build-workspace up-workspace
-	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/laravel /var/www/"
+	rm -rf /var/www/{,.[^.]}*
+	@$(VARS) && $(COMPOSE) \
+    	exec -u laradock workspace-ex bash -c "rm -rf /var/www/{,.[^.]}* && composer create-project --prefer-dist laravel/laravel $(PROJECT_NAME) && \
+    		mv $(PROJECT_NAME) $(PROJECT_NAME)_ && mv $(PROJECT_NAME)_/{,.[^.]}* /var/www/ && rm -rf $(PROJECT_NAME)_" || true
+	@$(VARS) && $(COMPOSE) down
 
 after-clone:
 	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
-	cd laradock && git checkout cb910c590e00cee77ebbf75867aae0c7d0199119
+	cd laradock && git checkout $(LARADOCK_COMMIT)
 	cp laradock/env-example laradock/.env
 	cp .docker.env.example .docker.env
 	make prepare-laradock-env
-	make build-workspace
-	make composer-install
 
 composer-install:
 	@$(VARS) && $(COMPOSE) run -u laradock workspace-ex bash -c "composer install"
@@ -41,14 +55,16 @@ logs-nginx:
 logs-workspace:
 	@$(VARS) && $(COMPOSE) logs workspace-ex
 
-build:
-	@$(VARS) && $(COMPOSE) build php-fpm php-fpm-ex || $(COMPOSE) build --no-cache php-fpm php-fpm-ex &
-	@$(VARS) && $(COMPOSE) build workspace workspace-ex || $(COMPOSE) build --no-cache workspace workspace-ex &
-	@$(VARS) && $(COMPOSE) build nginx nginx-ex || $(COMPOSE) build --no-cache nginx nginx-ex &
+ifeq (build,$(firstword $(MAKECMDGOALS)))
+  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(RUN_ARGS):;@:)
+endif
 
-up:
-	@$(VARS) && $(COMPOSE) up -d workspace-ex php-fpm-ex nginx-ex laravel-horizon-ex localdb
-	make xdebug-off
+build:
+	@test -n "$(RUN_ARGS)" || (echo CONTAINERS is not specified. Use \"make build simple\" for example && exit 1)
+	while read line; \
+		do [ ! -z "$$line" ] && $(VARS) && $(COMPOSE) build "$$line" || $(COMPOSE) build --no-cache "$$line" || ""; \
+		done < docker/config/$(RUN_ARGS)/build
 
 bash:
 	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash
@@ -64,10 +80,32 @@ xdebug-off:
 	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex
 
 init:
+	if [ -d "docker.old" ]; then \
+        echo "Check existing docker.old. Remove it. Dont loose it."; exit 1; \
+    fi
+
+	if [ -f ".docker.env.example.old" ]; then \
+		echo "Check existing .docker.env.example.old. Remove it. Dont loose it."; exit 1; \
+	fi
+
+	if [ -f ".docker.env.old" ]; then \
+		echo "Check existing .docker.env.old. Remove it. Dont loose it."; exit 1; \
+	fi
+
+	if [ -f ".docker.env.example" ]; then cp .docker.env.example .docker.env.example.old; fi
+	if [ -f ".docker.env" ]; then cp .docker.env .docker.env.old; fi
+	if [ -d "docker" ]; then cp -r docker docker.old; fi
+
+	if [ -d "docker.example" ]; then \
+		mv docker.example docker; \
+	fi
+
+	$(eval PHP_VERSION := $(if $(PHP_VERSION),$(PHP_VERSION),"7.4"))
+
 	test -n "$(PROJECT_NAME)" || (echo PROJECT_NAME env is not specified && exit 1)
 	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
-	cd laradock && git checkout cb910c590e00cee77ebbf75867aae0c7d0199119
+	cd laradock && git checkout $(LARADOCK_COMMIT)
 	cp laradock/env-example laradock/.env
 	mkdir -p src
 
@@ -84,21 +122,7 @@ init:
 
 	cp .docker.env.example .docker.env
 
-	echo "version: '3'" > docker-compose.yml
-
-	echo ".idea/*" >> .gitignore
-	echo "laradock/*" >> .gitignore
-	echo "laradock" >> .gitignore
-	echo ".docker.env" >> .gitignore
-
 	make prepare-laradock-env
-
-	git clone https://github.com/vladitot/laravel-maker.git tmp
-
-	mv tmp/docker docker
-	mv tmp/docker-compose.yml docker-compose.yml
-
-	rm -rf tmp
 
 	echo "FROM $(PROJECT_NAME)_workspace" | cat - docker/workspace-ex/Dockerfile > temp && mv temp docker/workspace-ex/Dockerfile
 	echo "FROM $(PROJECT_NAME)_php-fpm" | cat - docker/php-fpm-ex/Dockerfile > temp && mv temp docker/php-fpm-ex/Dockerfile
@@ -106,10 +130,8 @@ init:
 
 	echo "FROM $(PROJECT_NAME)_laravel-echo-server" | cat - docker/laravel-echo-server-ex/Dockerfile > temp && mv temp docker/laravel-echo-server-ex/Dockerfile
 
-
-
-
 	cp laradock/php-fpm/php$(PHP_VERSION).ini docker/php-fpm-ex/php$(PHP_VERSION).ini
+
 	cp laradock/php-fpm/xdebug.ini docker/php-fpm-ex/xdebug.ini
 	cp laradock/workspace/xdebug.ini docker/workspace-ex/xdebug.ini
 
@@ -120,6 +142,8 @@ init:
 
 	sed -i 's/xdebug\.remote_autostart=0/xdebug.remote_autostart=1/g' docker/php-fpm-ex/xdebug.ini
 	sed -i 's/xdebug\.remote_enable=0/xdebug.remote_enable=1/g' docker/php-fpm-ex/xdebug.ini
+
+	rm -rf README.md
 
 prepare-laradock-env:
 	sed -i 's/MSSQL_PASSWORD=yourStrong(!)Password/MSSQL_PASSWORD="yourStrong(!)Password"/g' laradock/.env
@@ -136,3 +160,23 @@ prepare-laradock-env:
 	sed -i 's/FILTERS=\["thumbor.filters.brightness", "thumbor.filters.contrast", "thumbor.filters.rgb", "thumbor.filters.round_corner", "thumbor.filters.quality", "thumbor.filters.noise", "thumbor.filters.watermark", "thumbor.filters.equalize", "thumbor.filters.fill", "thumbor.filters.sharpen", "thumbor.filters.strip_icc", "thumbor.filters.frame", "thumbor.filters.grayscale", "thumbor.filters.rotate", "thumbor.filters.format", "thumbor.filters.max_bytes", "thumbor.filters.convolution", "thumbor.filters.blur", "thumbor.filters.extract_focal", "thumbor.filters.no_upscale"\]/FILTERS="['thumbor.filters.brightness', 'thumbor.filters.contrast', 'thumbor.filters.rgb', 'thumbor.filters.round_corner', 'thumbor.filters.quality', 'thumbor.filters.noise', 'thumbor.filters.watermark', 'thumbor.filters.equalize', 'thumbor.filters.fill', 'thumbor.filters.sharpen', 'thumbor.filters.strip_icc', 'thumbor.filters.frame', 'thumbor.filters.grayscale', 'thumbor.filters.rotate', 'thumbor.filters.format', 'thumbor.filters.max_bytes', 'thumbor.filters.convolution', 'thumbor.filters.blur', 'thumbor.filters.extract_focal', 'thumbor.filters.no_upscale']"/g' laradock/.env
 	sed -i 's/MAILU_AUTH_RATELIMIT=10\/minute;1000\/hour/MAILU_AUTH_RATELIMIT="10\/minute;1000\/hour"/g' laradock/.env
 	sed -i 's/MAILU_SITENAME=Example Mail/MAILU_SITENAME="Example Mail"/g' laradock/.env
+
+
+ifeq (log,$(firstword $(MAKECMDGOALS)))
+  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(RUN_ARGS):;@:)
+endif
+
+log:
+	@$(VARS) && $(COMPOSE) logs $(RUN_ARGS)
+
+ifeq (up,$(firstword $(MAKECMDGOALS)))
+  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(RUN_ARGS):;@:)
+endif
+
+up:
+	$(eval CONTAINERS := $(subst \n, ,$(shell cat docker/config/$(RUN_ARGS)/up)))
+	@test -n "$(CONTAINERS)" || (echo CONTAINERS is not specified. Use \"make up simple\" for example && exit 1)
+	@$(VARS) && $(COMPOSE) up -d $(CONTAINERS)
+	make xdebug-off
