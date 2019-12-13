@@ -16,23 +16,22 @@ build-workspace:
 	@$(VARS) && $(COMPOSE) build workspace-ex || $(COMPOSE) build --no-cache workspace-ex
 
 zero-install: build-workspace up-workspace
-	rm -rf /var/www/{,.[^.]}*
 	@$(VARS) && $(COMPOSE) \
-	exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel-zero/laravel-zero $(PROJECT_NAME) && \
+	exec -u laradock workspace-ex bash -c "rm -rf /var/www/{,.[^.]}* && composer create-project --prefer-dist laravel-zero/laravel-zero $(PROJECT_NAME) && \
 		mv $(PROJECT_NAME) $(PROJECT_NAME)_ && mv $(PROJECT_NAME)_/{,.[^.]}* /var/www/ && rm -rf $(PROJECT_NAME)_" || true
 	@$(VARS) && $(COMPOSE) down
 
 lumen-install: build-workspace up-workspace
 	rm -rf /var/www/{,.[^.]}*
 	@$(VARS) && $(COMPOSE) \
-    	exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/lumen $(PROJECT_NAME) && \
+    	exec -u laradock workspace-ex bash -c "rm -rf /var/www/{,.[^.]}* && composer create-project --prefer-dist laravel/lumen $(PROJECT_NAME) && \
     		mv $(PROJECT_NAME) $(PROJECT_NAME)_ && mv $(PROJECT_NAME)_/{,.[^.]}* /var/www/ && rm -rf $(PROJECT_NAME)_" || true
 	@$(VARS) && $(COMPOSE) down
 
 laravel-install: build-workspace up-workspace
 	rm -rf /var/www/{,.[^.]}*
 	@$(VARS) && $(COMPOSE) \
-    	exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/laravel $(PROJECT_NAME) && \
+    	exec -u laradock workspace-ex bash -c "rm -rf /var/www/{,.[^.]}* && composer create-project --prefer-dist laravel/laravel $(PROJECT_NAME) && \
     		mv $(PROJECT_NAME) $(PROJECT_NAME)_ && mv $(PROJECT_NAME)_/{,.[^.]}* /var/www/ && rm -rf $(PROJECT_NAME)_" || true
 	@$(VARS) && $(COMPOSE) down
 
