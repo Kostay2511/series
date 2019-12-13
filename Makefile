@@ -1,10 +1,9 @@
 SHELL := bash
 VARS := set -a && source laradock/.env && source .docker.env
 COMPOSE := docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
-LARADOCK_COMMIT := a7faceba37028e9f54a9cef51a8e06b98225ecfc
-PHP_VERSION := "7.3"
+LARADOCK_COMMIT := v9.1
+-include .docker.env
 PROJECT_NAME := $(notdir $(patsubst %/,%,$(CURDIR)))
-
 
 help:
 	@echo "help is here"
@@ -16,8 +15,17 @@ build-workspace:
 	@$(VARS) && $(COMPOSE) build workspace || $(COMPOSE) build --no-cache workspace
 	@$(VARS) && $(COMPOSE) build workspace-ex || $(COMPOSE) build --no-cache workspace-ex
 
+zero-install: build-workspace up-workspace
+	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel-zero/laravel-zero /var/www/"
+	@$(VARS) && $(COMPOSE) down
+
+lumen-install: build-workspace up-workspace
+	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/lumen /var/www/"
+	@$(VARS) && $(COMPOSE) down
+
 laravel-install: build-workspace up-workspace
 	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash -c "composer create-project --prefer-dist laravel/laravel /var/www/"
+	@$(VARS) && $(COMPOSE) down
 
 after-clone:
 	rm -rf laradock
@@ -26,8 +34,6 @@ after-clone:
 	cp laradock/env-example laradock/.env
 	cp .docker.env.example .docker.env
 	make prepare-laradock-env
-	make build-workspace
-	make composer-install
 
 composer-install:
 	@$(VARS) && $(COMPOSE) run -u laradock workspace-ex bash -c "composer install"
@@ -42,14 +48,12 @@ logs-workspace:
 	@$(VARS) && $(COMPOSE) logs workspace-ex
 
 ifeq (build,$(firstword $(MAKECMDGOALS)))
-  # use the rest as arguments for "run"
   RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-  # ...and turn them into do-nothing targets
   $(eval $(RUN_ARGS):;@:)
 endif
 
 build:
-	@test -n "$(RUN_ARGS)" || (echo CONTAINERS is not specified. Use \"make build local\" for example && exit 1)
+	@test -n "$(RUN_ARGS)" || (echo CONTAINERS is not specified. Use \"make build simple\" for example && exit 1)
 	while read line; \
 		do [ ! -z "$$line" ] && $(VARS) && $(COMPOSE) build "$$line" || $(COMPOSE) build --no-cache "$$line" || ""; \
 		done < docker/config/$(RUN_ARGS)/build
@@ -68,6 +72,28 @@ xdebug-off:
 	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex
 
 init:
+	if [ -d "docker.old" ]; then \
+        echo "Check existing docker.old. Remove it. Dont loose it."; exit 1; \
+    fi
+
+	if [ -f ".docker.env.example.old" ]; then \
+		echo "Check existing .docker.env.example.old. Remove it. Dont loose it."; exit 1; \
+	fi
+
+	if [ -f ".docker.env.old" ]; then \
+		echo "Check existing .docker.env.old. Remove it. Dont loose it."; exit 1; \
+	fi
+
+	if [ -f ".docker.env.example" ]; then cp .docker.env.example .docker.env.example.old; fi
+	if [ -f ".docker.env" ]; then cp .docker.env .docker.env.old; fi
+	if [ -d "docker" ]; then cp -r docker docker.old; fi
+
+	if [ -d "docker.example" ]; then \
+		mv docker.example docker; \
+	fi
+
+	$(eval PHP_VERSION := $(if $(PHP_VERSION),$(PHP_VERSION),"7.4"))
+
 	test -n "$(PROJECT_NAME)" || (echo PROJECT_NAME env is not specified && exit 1)
 	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
@@ -96,8 +122,7 @@ init:
 
 	echo "FROM $(PROJECT_NAME)_laravel-echo-server" | cat - docker/laravel-echo-server-ex/Dockerfile > temp && mv temp docker/laravel-echo-server-ex/Dockerfile
 
-	cp laradock/php-fpm/php$(PHP_VERSION).ini docker/php-fpm-ex/php$(PHP_VERSION).ini || cp laradock/php-fpm/php7.3.ini docker/php-fpm-ex/php$(PHP_VERSION).ini
-	# "OR" MADE SIMPLY TO TEMPORARY FIX BUG WITH EMPTY php7.4.ini file
+	cp laradock/php-fpm/php$(PHP_VERSION).ini docker/php-fpm-ex/php$(PHP_VERSION).ini
 
 	cp laradock/php-fpm/xdebug.ini docker/php-fpm-ex/xdebug.ini
 	cp laradock/workspace/xdebug.ini docker/workspace-ex/xdebug.ini
@@ -130,25 +155,20 @@ prepare-laradock-env:
 
 
 ifeq (log,$(firstword $(MAKECMDGOALS)))
-  # use the rest as arguments for "run"
   RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-  # ...and turn them into do-nothing targets
   $(eval $(RUN_ARGS):;@:)
 endif
 
 log:
 	@$(VARS) && $(COMPOSE) logs $(RUN_ARGS)
 
-
 ifeq (up,$(firstword $(MAKECMDGOALS)))
-  # use the rest as arguments for "run"
   RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-  # ...and turn them into do-nothing targets
   $(eval $(RUN_ARGS):;@:)
 endif
 
 up:
 	$(eval CONTAINERS := $(subst \n, ,$(shell cat docker/config/$(RUN_ARGS)/up)))
-	@test -n "$(CONTAINERS)" || (echo CONTAINERS is not specified. Use \"make up local\" for example && exit 1)
+	@test -n "$(CONTAINERS)" || (echo CONTAINERS is not specified. Use \"make up simple\" for example && exit 1)
 	@$(VARS) && $(COMPOSE) up -d $(CONTAINERS)
 	make xdebug-off
