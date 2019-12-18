@@ -62,22 +62,25 @@ endif
 
 build:
 	@test -n "$(RUN_ARGS)" || (echo CONTAINERS is not specified. Use \"make build simple\" for example && exit 1)
-	while read line; \
-		do [ ! -z "$$line" ] && $(VARS) && $(COMPOSE) build "$$line" || $(COMPOSE) build --no-cache "$$line" || ""; \
-		done < docker/config/$(RUN_ARGS)/build
 
-bash:
+	$(eval CONTAINERS := $(subst \n, ,$(shell cat docker/config/$(RUN_ARGS)/build_common)))
+	$(VARS) && $(COMPOSE) build --parallel $(CONTAINERS)
+
+	$(eval CONTAINERS := $(subst \n, ,$(shell cat docker/config/$(RUN_ARGS)/build)))
+	$(VARS) && $(COMPOSE) build --parallel $(CONTAINERS)
+
+in:
 	@$(VARS) && $(COMPOSE) exec -u laradock workspace-ex bash
 
 xdebug-on:
-	@$(VARS) && $(COMPOSE) exec workspace-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini"
-	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
-	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex
+	@$(VARS) && $(COMPOSE) exec workspace-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini" || true
+	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^;zend_extension=/zend_extension=/g' /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini" || true
+	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex || true
 
 xdebug-off:
-	@$(VARS) && $(COMPOSE) exec workspace-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini"
-	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
-	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex
+	@$(VARS) && $(COMPOSE) exec workspace-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /etc/php/$(PHP_VERSION)/cli/conf.d/20-xdebug.ini" || true
+	@$(VARS) && $(COMPOSE) exec php-fpm-ex bash -c "sed -i 's/^zend_extension=/;zend_extension=/g' /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini" || true
+	@$(VARS) && $(COMPOSE) restart workspace-ex php-fpm-ex || true
 
 init:
 	if [ -d "docker.old" ]; then \
