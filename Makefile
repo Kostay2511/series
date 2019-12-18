@@ -55,6 +55,15 @@ logs-nginx:
 logs-workspace:
 	@$(VARS) && $(COMPOSE) logs workspace-ex
 
+ifeq (rebuild,$(firstword $(MAKECMDGOALS)))
+  RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+  $(eval $(RUN_ARGS):;@:)
+endif
+
+rebuild:
+	@test -n "$(RUN_ARGS)" || (echo CONTAINER is not specified. Use \"make build workspace-ex\" for example && exit 1)
+	$(VARS) && $(COMPOSE) build --no-cache --parallel $(RUN_ARGS)
+
 ifeq (build,$(firstword $(MAKECMDGOALS)))
   RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
   $(eval $(RUN_ARGS):;@:)
