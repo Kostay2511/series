@@ -132,6 +132,8 @@ init:
 	cd laradock && git checkout $(LARADOCK_COMMIT)
 	mkdir -p src
 
+	echo "" >> .docker.env.example
+	echo "" >> .docker.env.example
 	echo "COMPOSE_PROJECT_NAME=$(PROJECT_NAME)" >> .docker.env.example
 	echo "DATA_PATH_HOST=~/.laradock/$(PROJECT_NAME)/data" >> .docker.env.example
 	echo "APP_CODE_PATH_HOST=../src/" >> .docker.env.example
