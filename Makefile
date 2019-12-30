@@ -1,8 +1,8 @@
 SHELL := bash
 VARS := set -a && source laradock/.env && source .docker.env
-COMPOSE := docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
 LARADOCK_COMMIT := v9.3
 -include .docker.env
+COMPOSE := $(CLIENT) docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
 PROJECT_NAME := $(notdir $(patsubst %/,%,$(CURDIR)))
 
 help:
@@ -40,7 +40,7 @@ after-clone:
 	git clone https://github.com/Laradock/laradock.git
 	cp laradock/env-example laradock/.env
 	cd laradock && git checkout $(LARADOCK_COMMIT)
-	cp .docker.env.example .docker.env
+	if [ ! -f ".docker.env" ]; then cp .docker.env.example .docker.env; fi
 
 composer-install:
 	@$(VARS) && $(COMPOSE) run -u laradock workspace-ex bash -c "composer install"
@@ -112,7 +112,10 @@ init:
 		echo "Check existing .docker.env.old. Remove it. Dont loose it."; exit 1; \
 	fi
 
-	if [ -f ".docker.env.example" ]; then cp .docker.env.example .docker.env.example.old; fi
+	if [ ! -d "docker.example" ]; then \
+		if [ -f ".docker.env.example" ]; then cp .docker.env.example .docker.env.example.old; fi; \
+	fi
+
 	if [ -f ".docker.env" ]; then cp .docker.env .docker.env.old; fi
 	if [ -d "docker" ]; then cp -r docker docker.old; fi
 
@@ -125,11 +128,11 @@ init:
 	test -n "$(PROJECT_NAME)" || (echo PROJECT_NAME env is not specified && exit 1)
 	rm -rf laradock
 	git clone https://github.com/Laradock/laradock.git
-	cd laradock && git checkout $(LARADOCK_COMMIT)
 	cp laradock/env-example laradock/.env
+	cd laradock && git checkout $(LARADOCK_COMMIT)
 	mkdir -p src
 
-	echo "COMPOSE_PROJECT_NAME=$(PROJECT_NAME)" > .docker.env.example
+	echo "COMPOSE_PROJECT_NAME=$(PROJECT_NAME)" >> .docker.env.example
 	echo "DATA_PATH_HOST=~/.laradock/$(PROJECT_NAME)/data" >> .docker.env.example
 	echo "APP_CODE_PATH_HOST=../src/" >> .docker.env.example
 	echo "WORKSPACE_INSTALL_XDEBUG=true" >> .docker.env.example
@@ -140,7 +143,8 @@ init:
 	echo "MACHINE_IP=192.168.161.199" >> .docker.env.example
 	echo "PHP_IDE_CONFIG=serverName=$(PROJECT_NAME)" >> .docker.env.example
 
-	cp .docker.env.example .docker.env
+
+	if [ ! -f ".docker.env" ]; then cp .docker.env.example .docker.env; fi
 
 	echo "FROM $(PROJECT_NAME)_workspace" | cat - docker/workspace-ex/Dockerfile > temp && mv temp docker/workspace-ex/Dockerfile
 	echo "FROM $(PROJECT_NAME)_php-fpm" | cat - docker/php-fpm-ex/Dockerfile > temp && mv temp docker/php-fpm-ex/Dockerfile
