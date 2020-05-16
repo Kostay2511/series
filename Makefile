@@ -126,6 +126,7 @@ init:
 	echo "APP_CODE_PATH_HOST=../src/" >> .docker.env.example
 	echo "WORKSPACE_INSTALL_XDEBUG=true" >> .docker.env.example
 	echo "PHP_FPM_INSTALL_XDEBUG=true" >> .docker.env.example
+	echo "PHP_FPM_INSTALL_INTL=false" >> .docker.env.example
 	echo "WORKSPACE_INSTALL_PRESTISSIMO=true" >> .docker.env.example
 	echo "PHP_VERSION=$(PHP_VERSION)" >> .docker.env.example
 	echo "NGINX_PHP_UPSTREAM_CONTAINER=php-fpm-ex" >> .docker.env.example
