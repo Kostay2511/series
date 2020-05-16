@@ -1,12 +1,12 @@
 {
-	"authHost": "http://nginx-extended",
+	"authHost": "http://nginx-ex",
 	"authEndpoint": "/broadcasting/auth",
 	"clients": [],
 	"database": "redis",
 	"databaseConfig": {
 		"redis": {
 			"port": "6379",
-			"host": "redis-extended"
+			"host": "redis-ex"
 		}
 	},
 	"devMode": true,

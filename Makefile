@@ -1,6 +1,6 @@
 SHELL := bash
 VARS := set -a && source laradock/.env && source .docker.env
-LARADOCK_COMMIT := v9.3
+LARADOCK_COMMIT := v10.0
 -include .docker.env
 COMPOSE := $(CLIENT) docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
 PROJECT_NAME := $(notdir $(patsubst %/,%,$(CURDIR)))
@@ -14,19 +14,6 @@ up-workspace:
 build-workspace:
 	@$(VARS) && $(COMPOSE) build workspace || $(COMPOSE) build --no-cache workspace
 	@$(VARS) && $(COMPOSE) build workspace-ex || $(COMPOSE) build --no-cache workspace-ex
-
-zero-install: build-workspace up-workspace
-	@$(VARS) && $(COMPOSE) \
-	exec -u laradock workspace-ex bash -c "rm -rf /var/www/{,.[^.]}* && composer create-project --prefer-dist laravel-zero/laravel-zero $(PROJECT_NAME) && \
-		mv $(PROJECT_NAME) $(PROJECT_NAME)_ && mv $(PROJECT_NAME)_/{,.[^.]}* /var/www/ && rm -rf $(PROJECT_NAME)_" || true
-	@$(VARS) && $(COMPOSE) down
-
-lumen-install: build-workspace up-workspace
-	rm -rf /var/www/{,.[^.]}*
-	@$(VARS) && $(COMPOSE) \
-    	exec -u laradock workspace-ex bash -c "rm -rf /var/www/{,.[^.]}* && composer create-project --prefer-dist laravel/lumen $(PROJECT_NAME) && \
-    		mv $(PROJECT_NAME) $(PROJECT_NAME)_ && mv $(PROJECT_NAME)_/{,.[^.]}* /var/www/ && rm -rf $(PROJECT_NAME)_" || true
-	@$(VARS) && $(COMPOSE) down
 
 laravel-install: build-workspace up-workspace
 	rm -rf /var/www/{,.[^.]}*
@@ -158,13 +145,6 @@ init:
 
 	cp laradock/php-fpm/xdebug.ini docker/php-fpm-ex/xdebug.ini
 	cp laradock/workspace/xdebug.ini docker/workspace-ex/xdebug.ini
-
-	echo "xdebug.remote_host=dockerhost_ext" >> docker/workspace-ex/xdebug.ini
-	echo "xdebug.remote_autostart=1" >> docker/workspace-ex/xdebug.ini
-	echo "xdebug.remote_enable=1" >> docker/workspace-ex/xdebug.ini
-
-	echo "xdebug.remote_autostart=1" >> docker/php-fpm-ex/xdebug.ini
-	echo "xdebug.remote_enable=1" >> docker/php-fpm-ex/xdebug.ini
 
 	rm -rf README.md
 
