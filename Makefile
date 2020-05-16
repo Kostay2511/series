@@ -127,6 +127,7 @@ init:
 	echo "WORKSPACE_INSTALL_XDEBUG=true" >> .docker.env.example
 	echo "PHP_FPM_INSTALL_XDEBUG=true" >> .docker.env.example
 	echo "PHP_FPM_INSTALL_INTL=false" >> .docker.env.example
+	echo "PHP_FPM_INSTALL_IMAGEMAGICK=false" >> .docker.env.example
 	echo "WORKSPACE_INSTALL_PRESTISSIMO=true" >> .docker.env.example
 	echo "PHP_VERSION=$(PHP_VERSION)" >> .docker.env.example
 	echo "NGINX_PHP_UPSTREAM_CONTAINER=php-fpm-ex" >> .docker.env.example
@@ -167,4 +168,3 @@ up:
 	$(eval CONTAINERS := $(subst \n, ,$(shell cat docker/config/$(RUN_ARGS)/up)))
 	@test -n "$(CONTAINERS)" || (echo CONTAINERS is not specified. Use \"make up simple\" for example && exit 1)
 	@$(VARS) && $(COMPOSE) up -d $(CONTAINERS)
-	make xdebug-off
