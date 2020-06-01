@@ -1,7 +1,7 @@
 SHELL := bash
-VARS := set -a && source laradock/.env && source .docker.env
+VARS := set -a && source laradock/.env && source src/.docker.env
 LARADOCK_COMMIT := v10.0
--include .docker.env
+-include src/.docker.env
 COMPOSE := $(CLIENT) docker-compose -f laradock/docker-compose.yml -f docker-compose.yml
 PROJECT_NAME := $(notdir $(patsubst %/,%,$(CURDIR)))
 
