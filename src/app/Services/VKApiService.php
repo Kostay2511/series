@@ -16,10 +16,9 @@ class VKApiService
                 return event(new ConfirmationMessageEvent(), [], true);
                 break;
             case 'message_new' :
-                SelectFilmEvent::dispatch('47535111');
+                SelectFilmEvent::dispatch($params['object']['user_id']);
                 break;
         }
-
         return 'OK';
     }
 }
