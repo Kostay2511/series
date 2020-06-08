@@ -13,8 +13,10 @@
         "fideloper/proxy": "^4.2",
         "fruitcake/laravel-cors": "^1.0",
         "guzzlehttp/guzzle": "^6.5",
+        "imangazaliev/didom": "^1.16",
         "laravel/framework": "^7.0",
-        "laravel/tinker": "^2.0"
+        "laravel/tinker": "^2.0",
+        "php-ai/php-ml": "^0.9.0"
     },
     "require-dev": {
         "facade/ignition": "^2.0",

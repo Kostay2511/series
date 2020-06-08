@@ -1,4 +1,4 @@
 workspace-ex
 php-fpm-ex
 nginx-ex
-localdb
+mysql

@@ -2,4 +2,4 @@ workspace
 php-fpm
 nginx
 redis
-localdb
+mysql
