@@ -48,16 +48,20 @@ class CheckSeriesKNNCommand extends Command
     {
         $overall = [0, 0];
         $proxy = 0;
+        $goodProxy = False;
         $clientId = 4729038;
         Cache::forget('proxy');
-        for ($i = $clientId; $i < $clientId + 100; $i++) {
+        for ($i = $clientId; $i < $clientId + 1; $i++) {
             $this->line('i= ' . $i);
-            $proxy = $this->getRandomProxy($proxy);
+            $proxy = $this->getRandomProxy($proxy, $goodProxy);
             $client = new Client();
             try {
                 $time = microtime(true);
                 $response = $client->request('GET', 'https://www.imdb.com/user/ur' . $i . '/reviews', [
                     'proxy' => $proxy,
+                    'accept-language' => 'ru',
+                    'content-language' => 'ru',
+                    'content-type' => 'text/html; charset=utf-8',
                     'headers' => [
                         'accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                         'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36',
@@ -72,6 +76,27 @@ class CheckSeriesKNNCommand extends Command
                 $this->line('overall: ' . $overall[1] . ' ' . $overall[0] . 's.');
                 $document = new Document($response->getBody()->getContents());
                 $posts = $document->find('.lister-item-content');
+                $loadMore = $document->first('.load-more-data');
+                while (!empty($loadMore)) {
+                    $dataKey = $loadMore->getAttribute('data-key');
+                    $response = $client->request('GET', 'https://www.imdb.com/user/ur'. $i . '/reviews/_ajax?ref_=undefined&paginationKey='.$dataKey, [
+                        'proxy' => $proxy,
+                        'accept-language' => 'ru',
+                        'content-language' => 'ru',
+                        'content-type' => 'text/html; charset=utf-8',
+                        'headers' => [
+                            'accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                            'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36',
+                            'sec-fetch-user' => '?1',
+                        ],
+                    ]);
+                    $document = new Document($response->getBody()->getContents());
+                    $otherPosts = $document->find('.lister-item-content');
+                    $posts = array_merge($posts,$otherPosts);
+                    $loadMore = $document->first('.load-more-data');
+                }
+
+
                 foreach ($posts as $post) {
                     $name = $post->first('a')->text();
                     $href = $post->first('a')->getAttribute('href');
@@ -94,18 +119,21 @@ class CheckSeriesKNNCommand extends Command
                         ]);
                     }
                 }
+                $goodProxy = True;
             } catch (ClientException $e) {
+                $this->line('ClientException: '.$e->getMessage());
                 if ($e->getResponse()->getStatusCode() != 404) {
                     --$i;
                 }
+                $goodProxy = True;
             } catch (ServerException $e) {
-                if ($e->getResponse()->getStatusCode() != 503) {
-                    --$i;
-                }
+                $this->line('ServerException: '.$e->getMessage());
+                --$i;
+                $goodProxy = False;
             } catch (GuzzleException $e) {
-                if ($e->getResponse()->getStatusCode() != 503) {
-                    --$i;
-                }
+                $this->line('OtherException: '.$e->getMessage());
+                --$i;
+                $goodProxy = False;
             }
         }
     }
@@ -114,7 +142,7 @@ class CheckSeriesKNNCommand extends Command
      * @param string $proxy
      * @return string
      */
-    private function getRandomProxy(string $proxy): string
+    private function getRandomProxy(string $proxy, bool $goodProxy): string
     {
         Cache::remember('proxy', 3600, function () {
             $proxy = Http::get('http://spys.me/proxy.txt')->body();
@@ -122,10 +150,15 @@ class CheckSeriesKNNCommand extends Command
             preg_match_all($pattern, $proxy, $arrayProxy);
             return $arrayProxy['proxy'];
         });
+        if ($goodProxy==False) {
+            $arrayProxy = Cache::pull('proxy');
+            unset($arrayProxy[array_search($proxy, $arrayProxy)]);
+            Cache::put('proxy',$arrayProxy);
+        }
         do {
             $currentProxyId = array_rand(Cache::get('proxy'));
             $currentProxy = Cache::get('proxy')[$currentProxyId];
-        } while ($currentProxy == $proxy);
+        } while ($goodProxy==True and $currentProxy == $proxy);
         return $currentProxy;
     }
 }
