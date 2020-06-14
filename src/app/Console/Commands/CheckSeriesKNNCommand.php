@@ -6,9 +6,7 @@ use App\Models\Series;
 use App\Models\UserRating;
 use DiDom\Document;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\Pool;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -46,119 +44,183 @@ class CheckSeriesKNNCommand extends Command
      */
     public function handle()
     {
-        $overall = [0, 0];
-        $proxy = 0;
-        $goodProxy = False;
-        $clientId = 4729038;
+        $countRequest = 100;
+        $clientId = 999998;
+        //1002000
         Cache::forget('proxy');
-        for ($i = $clientId; $i < $clientId + 1; $i++) {
-            $this->line('i= ' . $i);
-            $proxy = $this->getRandomProxy($proxy, $goodProxy);
-            $client = new Client();
-            try {
-                $time = microtime(true);
-                $response = $client->request('GET', 'https://www.imdb.com/user/ur' . $i . '/reviews', [
-                    'proxy' => $proxy,
-                    'accept-language' => 'ru',
-                    'content-language' => 'ru',
-                    'content-type' => 'text/html; charset=utf-8',
-                    'headers' => [
-                        'accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                        'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36',
-                        'sec-fetch-user' => '?1',
-                    ],
+        Cache::forget('failedUsers');
 
-                ]);
-                $time = (microtime(true) - $time);
-                var_dump($time);
-                $overall[0] += $time;
-                ++$overall[1];
-                $this->line('overall: ' . $overall[1] . ' ' . $overall[0] . 's.');
-                $document = new Document($response->getBody()->getContents());
-                $posts = $document->find('.lister-item-content');
-                $loadMore = $document->first('.load-more-data');
-                while (!empty($loadMore)) {
-                    $dataKey = $loadMore->getAttribute('data-key');
-                    $response = $client->request('GET', 'https://www.imdb.com/user/ur'. $i . '/reviews/_ajax?ref_=undefined&paginationKey='.$dataKey, [
-                        'proxy' => $proxy,
-                        'accept-language' => 'ru',
-                        'content-language' => 'ru',
-                        'content-type' => 'text/html; charset=utf-8',
-                        'headers' => [
-                            'accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                            'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36',
-                            'sec-fetch-user' => '?1',
-                        ],
-                    ]);
-                    $document = new Document($response->getBody()->getContents());
-                    $otherPosts = $document->find('.lister-item-content');
-                    $posts = array_merge($posts,$otherPosts);
-                    $loadMore = $document->first('.load-more-data');
-                }
-
-
-                foreach ($posts as $post) {
-                    $name = $post->first('a')->text();
-                    $href = $post->first('a')->getAttribute('href');
-                    $userScale = $post->find('.rating-other-user-rating');
-                    if (!empty($userScale)) {
-                        $scale = $userScale[0]->find('span')[1]->text();
-                        $subject = $post->first('.lister-item-year.text-muted.unbold');
-                        $pattern = '/\d{4}/';
-                        preg_match($pattern, $subject, $matches);
-                        $year = $matches[0];
-                        $series = Series::firstOrCreate([
-                            'name' => $name,
-                            'imdb_id' => $href,
-                            'year' => $year,
-                        ]);
-                        UserRating::firstOrCreate([
-                            'id_series' => $series['id'],
-                            'user_id' => $i,
-                            'user_rating' => $scale,
-                        ]);
-                    }
-                }
-                $goodProxy = True;
-            } catch (ClientException $e) {
-                $this->line('ClientException: '.$e->getMessage());
-                if ($e->getResponse()->getStatusCode() != 404) {
-                    --$i;
-                }
-                $goodProxy = True;
-            } catch (ServerException $e) {
-                $this->line('ServerException: '.$e->getMessage());
-                --$i;
-                $goodProxy = False;
-            } catch (GuzzleException $e) {
-                $this->line('OtherException: '.$e->getMessage());
-                --$i;
-                $goodProxy = False;
-            }
-        }
+        $client = new Client();
+        $requests = $this->createRequest($client);
+        $pool = $this->createNewPool($client, $requests, $clientId, $countRequest);
+        $promise = $pool->promise();
+        $promise->wait();
+        $poolSecond = $this->createNewPool($client, $requests, $clientId, $countRequest);
+        $promise = $poolSecond->promise();
+        $promise->wait();
     }
 
     /**
      * @param string $proxy
      * @return string
      */
-    private function getRandomProxy(string $proxy, bool $goodProxy): string
+    private function getRandomProxy(): string
     {
-        Cache::remember('proxy', 3600, function () {
+        $arrayProxy = Cache::remember('proxy', 3600, function () {
             $proxy = Http::get('http://spys.me/proxy.txt')->body();
             $pattern = '/(?<proxy>(\d+\.){3}\d+:\d+)\s+.+\s+\+/';
             preg_match_all($pattern, $proxy, $arrayProxy);
             return $arrayProxy['proxy'];
         });
-        if ($goodProxy==False) {
-            $arrayProxy = Cache::pull('proxy');
-            unset($arrayProxy[array_search($proxy, $arrayProxy)]);
-            Cache::put('proxy',$arrayProxy);
+        return $arrayProxy[array_rand($arrayProxy)];
+    }
+
+    /**
+     * @param $proxy
+     */
+    private function deleteProxy($proxy)
+    {
+        $arrayProxy = Cache::pull('proxy');
+        unset($arrayProxy[array_search($proxy, $arrayProxy)]);
+        Cache::put('proxy', $arrayProxy);
+    }
+
+    /**
+     * @param string $proxy
+     * @return array
+     */
+    private function requestParams(string $proxy)
+    {
+        return [
+            'proxy' => $proxy,
+            'headers' => [
+                'accept-language' => 'ru-RU',
+                'content-language' => 'ru-RU',
+                'content-type' => 'text/html; charset=utf-8',
+                'accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36',
+                'sec-fetch-user' => '?1',
+            ]
+        ];
+    }
+
+    /**
+     * @param $client
+     * @return \Closure
+     */
+    private function createRequest($client)
+    {
+        $requests = function ($from, $count, $failedUsers) use ($client) {
+            if ($failedUsers) {
+                foreach ($failedUsers as $user) {
+                    $proxy = $this->getRandomProxy();
+                    $this->line('sending ' . $user . ' ' . $proxy);
+                    yield function () use ($client, $user, $proxy) {
+                        Cache::put($user, $proxy, 3600);
+                        return $client->getAsync('https://www.imdb.com/user/ur' . $user . '/reviews', $this->requestParams($proxy));
+                    };
+                }
+            } else {
+                for ($i = $from; $i < $from + $count; $i++) {
+                    $proxy = $this->getRandomProxy();
+                    $this->line('sending ' . $i . ' ' . $proxy);
+                    yield function () use ($client, $i, $proxy) {
+                        Cache::put($i, $proxy, 3600);
+                        return $client->getAsync('https://www.imdb.com/user/ur' . $i . '/reviews', $this->requestParams($proxy));
+                    };
+                }
+            }
+        };
+        return $requests;
+    }
+    /**
+     *
+     * @param $client
+     * @param $requests
+     * @param $clientId
+     * @param $countRequest
+     * @return Pool
+     */
+    private function createNewPool($client, $requests, $clientId, $countRequest)
+    {
+        $pool = new Pool($client, $requests($clientId, $countRequest, Cache::get('failedUsers')), [
+            'concurrency' => 10,
+            'fulfilled' => function ($response) use ($client, $clientId) {
+                $userUri = $response->getHeaders()['Entity-Id'][0];
+                $pattern = '/ur(?<userId>(\d+))/';
+                preg_match_all($pattern, $userUri, $userId);
+                $document = new Document($response->getBody()->getContents());
+                $this->getContentDocument($client, $document, $userId['userId'][0], Cache::get($clientId));
+                $this->line('id = ' . ($userId['userId'][0]) . ' good');
+                Cache::forget($userId['userId'][0]);
+            },
+            'rejected' => function ($reason) use ($clientId) {
+                $uri = $reason->getRequest()->getUri()->getPath();
+                $pattern = '/\\/ur(?<userId>(\d+))\\//';
+                preg_match_all($pattern, $uri, $userId);
+                $badProxy = Cache::pull($userId['userId'][0]);
+                $this->deleteProxy($badProxy);
+                $this->line('id = ' . ($userId['userId'][0]) . ' ' . $reason->getMessage());
+                if (!stripos($reason->getMessage(), '404 Not Found')) {
+                    $failedUsers = Cache::remember('failedUsers', 3600, function () {
+                        return [];
+                    });
+                    array_push($failedUsers, $userId['userId'][0]);
+                    Cache::put('failedUsers', $failedUsers);
+                }
+            },
+        ]);
+        return $pool;
+    }
+
+    /**
+     * @param $client
+     * @param $document
+     * @param $id
+     * @param $proxy
+     * @throws \DiDom\Exceptions\InvalidSelectorException
+     */
+    private function getContentDocument($client, $document, $id, $proxy)
+    {
+        $posts = $document->find('.lister-item-content');
+        $loadMore = $document->first('.load-more-data');
+        while (!empty($loadMore)) {
+            $this->line('loadmore for '.$id);
+            $dataKey = $loadMore->getAttribute('data-key');
+            $response = $client
+                ->getAsync('https://www.imdb.com/user/ur' . $id . '/reviews/_ajax?ref_=undefined&paginationKey=' . $dataKey, $this->requestParams($proxy))
+                ->promise()
+                ->wait();
+            $document = new Document($response->getBody()->getContents());
+            $otherPosts = $document->find('.lister-item-content');
+            $posts = array_merge($posts, $otherPosts);
+            $loadMore = $document->first('.load-more-data');
         }
-        do {
-            $currentProxyId = array_rand(Cache::get('proxy'));
-            $currentProxy = Cache::get('proxy')[$currentProxyId];
-        } while ($goodProxy==True and $currentProxy == $proxy);
-        return $currentProxy;
+        $this->line('count = ' . count($posts));
+        if (count($posts) > 2) {
+            foreach ($posts as $post) {
+                $name = $post->first('a')->text();
+                $href = $post->first('a')->getAttribute('href');
+                $userScale = $post->find('.rating-other-user-rating');
+                if (!empty($userScale)) {
+                    $scale = $userScale[0]->find('span')[1]->text();
+                    $subject = $post->first('.lister-item-year.text-muted.unbold');
+                    $pattern = '/\d{4}/';
+                    preg_match($pattern, $subject, $matches);
+                    $year = $matches[0];
+                    $this->line($scale . ' ' . $year . ' ' . $name);
+                    $series = Series::firstOrCreate([
+                        'name' => $name,
+                        'imdb_id' => $href,
+                        'year' => $year,
+                    ]);
+                    UserRating::firstOrCreate([
+                        'id_series' => $series['id'],
+                        'user_id' => $id,
+                        'user_rating' => $scale,
+                    ]);
+                }
+            }
+        }
     }
 }
