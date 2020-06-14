@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Series;
 use App\Models\UserRating;
 use DiDom\Document;
+use GuzzleHttp\Promise;
 use GuzzleHttp\Client;
 use GuzzleHttp\Pool;
 use Illuminate\Console\Command;
@@ -45,8 +46,7 @@ class CheckSeriesKNNCommand extends Command
     public function handle()
     {
         $countRequest = 100;
-        $clientId = 999998;
-        //1002000
+        $clientId = 1002000;
         Cache::forget('proxy');
         Cache::forget('failedUsers');
 
@@ -145,16 +145,16 @@ class CheckSeriesKNNCommand extends Command
     {
         $pool = new Pool($client, $requests($clientId, $countRequest, Cache::get('failedUsers')), [
             'concurrency' => 10,
-            'fulfilled' => function ($response) use ($client, $clientId) {
+            'fulfilled' => function ($response) use ($client) {
                 $userUri = $response->getHeaders()['Entity-Id'][0];
                 $pattern = '/ur(?<userId>(\d+))/';
                 preg_match_all($pattern, $userUri, $userId);
                 $document = new Document($response->getBody()->getContents());
-                $this->getContentDocument($client, $document, $userId['userId'][0], Cache::get($clientId));
+                $this->getContentDocument($client, $document, $userId['userId'][0], Cache::get($userId['userId'][0]));
                 $this->line('id = ' . ($userId['userId'][0]) . ' good');
                 Cache::forget($userId['userId'][0]);
             },
-            'rejected' => function ($reason) use ($clientId) {
+            'rejected' => function ($reason) {
                 $uri = $reason->getRequest()->getUri()->getPath();
                 $pattern = '/\\/ur(?<userId>(\d+))\\//';
                 preg_match_all($pattern, $uri, $userId);
@@ -183,20 +183,20 @@ class CheckSeriesKNNCommand extends Command
     private function getContentDocument($client, $document, $id, $proxy)
     {
         $posts = $document->find('.lister-item-content');
-        $loadMore = $document->first('.load-more-data');
-        while (!empty($loadMore)) {
+        $loadMorBtn = $document->first('ipl-load-more ipl-load-more--loaded');
+        while (!empty($loadMoreBtn)) {
+            $loadMore = $document->first('.load-more-data');
             $this->line('loadmore for '.$id);
             $dataKey = $loadMore->getAttribute('data-key');
+            $this->line('https://www.imdb.com/user/ur' . $id . '/reviews/_ajax?ref_=undefined&paginationKey=' . $dataKey);
             $response = $client
-                ->getAsync('https://www.imdb.com/user/ur' . $id . '/reviews/_ajax?ref_=undefined&paginationKey=' . $dataKey, $this->requestParams($proxy))
-                ->promise()
+                ->requestAsync('https://www.imdb.com/user/ur' . $id . '/reviews/_ajax?ref_=undefined&paginationKey=' . $dataKey, $this->requestParams($proxy))
                 ->wait();
             $document = new Document($response->getBody()->getContents());
             $otherPosts = $document->find('.lister-item-content');
             $posts = array_merge($posts, $otherPosts);
             $loadMore = $document->first('.load-more-data');
         }
-        $this->line('count = ' . count($posts));
         if (count($posts) > 2) {
             foreach ($posts as $post) {
                 $name = $post->first('a')->text();
