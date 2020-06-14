@@ -45,8 +45,8 @@ class CheckSeriesKNNCommand extends Command
      */
     public function handle()
     {
-        $countRequest = 100;
-        $clientId = 1002000;
+        $countRequest = 1000;
+        $clientId = 1005183;
         Cache::forget('proxy');
         Cache::forget('failedUsers');
 
