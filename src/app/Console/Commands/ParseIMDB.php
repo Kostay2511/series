@@ -5,19 +5,19 @@ namespace App\Console\Commands;
 use App\Models\Series;
 use App\Models\UserRating;
 use DiDom\Document;
-use GuzzleHttp\Promise;
 use GuzzleHttp\Client;
 use GuzzleHttp\Pool;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Psy\Exception\ErrorException;
 
-class CheckSeriesKNNCommand extends Command
+class ParseIMDB extends Command
 {
     /**
-     * The name and signature of the console command.
-     *
-     * @var string
+    * The name and signature of the console command.
+    *
+    * @var string
      */
     protected $signature = 'parse';
 
@@ -133,6 +133,7 @@ class CheckSeriesKNNCommand extends Command
         };
         return $requests;
     }
+
     /**
      *
      * @param $client
@@ -146,13 +147,17 @@ class CheckSeriesKNNCommand extends Command
         $pool = new Pool($client, $requests($clientId, $countRequest, Cache::get('failedUsers')), [
             'concurrency' => 10,
             'fulfilled' => function ($response) use ($client) {
-                $userUri = $response->getHeaders()['Entity-Id'][0];
-                $pattern = '/ur(?<userId>(\d+))/';
-                preg_match_all($pattern, $userUri, $userId);
-                $document = new Document($response->getBody()->getContents());
-                $this->getContentDocument($client, $document, $userId['userId'][0], Cache::get($userId['userId'][0]));
-                $this->line('id = ' . ($userId['userId'][0]) . ' good');
-                Cache::forget($userId['userId'][0]);
+                try {
+                    $userUri = $response->getHeaders()['Entity-Id'][0];
+                    $pattern = '/ur(?<userId>(\d+))/';
+                    preg_match_all($pattern, $userUri, $userId);
+                    $document = new Document($response->getBody()->getContents());
+                    $this->getContentDocument($client, $document, $userId['userId'][0], Cache::get($userId['userId'][0]));
+                    $this->line('id = ' . ($userId['userId'][0]) . ' good');
+                    Cache::forget($userId['userId'][0]);
+                } catch (ErrorException $e){
+                    var_dump($e);
+                }
             },
             'rejected' => function ($reason) {
                 $uri = $reason->getRequest()->getUri()->getPath();
@@ -186,7 +191,7 @@ class CheckSeriesKNNCommand extends Command
         $loadMorBtn = $document->first('ipl-load-more ipl-load-more--loaded');
         while (!empty($loadMoreBtn)) {
             $loadMore = $document->first('.load-more-data');
-            $this->line('loadmore for '.$id);
+            $this->line('loadmore for ' . $id);
             $dataKey = $loadMore->getAttribute('data-key');
             $this->line('https://www.imdb.com/user/ur' . $id . '/reviews/_ajax?ref_=undefined&paginationKey=' . $dataKey);
             $response = $client

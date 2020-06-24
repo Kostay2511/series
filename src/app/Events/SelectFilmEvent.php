@@ -18,10 +18,12 @@ class SelectFilmEvent
      */
 
     public $user_id;
+    public $result;
 
-    public function __construct($userId)
+    public function __construct($userId, $result)
     {
         $this->user_id = $userId;
+        $this->result = $result;
     }
 
     /**

@@ -12,7 +12,6 @@ class SendSelectedFilm
      *
      * @return void
      */
-
     public function __construct()
     {
         //
@@ -29,7 +28,7 @@ class SendSelectedFilm
         if (isset($event->user_id)) {
             Http::asForm()->post('https://api.vk.com/method/messages.send?', [
                 'user_id' => $event->user_id,
-                'message' => 'molodoy человек',
+                'message' => $event->result,
                 'access_token' => config('app.vk_confirmation_token'),
                 'v' => '5.107',
                 'random_id' => 0,

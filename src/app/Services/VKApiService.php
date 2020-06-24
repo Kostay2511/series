@@ -9,14 +9,18 @@ use App\Events\SelectFilmEvent;
 
 class VKApiService
 {
-    public function typeOfMessage(array $params)
+    /**
+     * @param array $params
+     * @return array|string|null
+     */
+    public function typeOfMessage(array $params, $result)
     {
         switch ($params['type']) {
             case 'confirmation' :
                 return event(new ConfirmationMessageEvent(), [], true);
                 break;
             case 'message_new' :
-                SelectFilmEvent::dispatch($params['object']['user_id']);
+                SelectFilmEvent::dispatch($params['object']['user_id'], $result);
                 break;
         }
         return 'OK';

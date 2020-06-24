@@ -1,10 +1,17 @@
 <?php
+
 namespace App\Services;
+
+use App\Models\Series;
 
 class FilmService
 {
-    public function getNearestFilms()
+    /**
+     * @param array $filmsId
+     * @return mixed
+     */
+    public function getFilmsById(array $filmsId)
     {
-        return 'OK';
+        return Series::whereIn('id', $filmsId)->get(['name']);
     }
 }
