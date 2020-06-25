@@ -13,14 +13,14 @@ class VKApiService
      * @param array $params
      * @return array|string|null
      */
-    public function typeOfMessage(array $params, $result)
+    public function typeOfMessage(array $params)
     {
         switch ($params['type']) {
-            case 'confirmation' :
+            case 'confirmation':
                 return event(new ConfirmationMessageEvent(), [], true);
                 break;
-            case 'message_new' :
-                SelectFilmEvent::dispatch($params['object']['user_id'], $result);
+            case 'message_new':
+                SelectFilmEvent::dispatch($params['object']['user_id'], $params['object']['body']);
                 break;
         }
         return 'OK';

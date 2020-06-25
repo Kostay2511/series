@@ -17,13 +17,20 @@ class SelectFilmEvent
      * @return void
      */
 
-    public $user_id;
-    public $result;
+    private $user_id;
+    private $message;
 
-    public function __construct($userId, $result)
+    public function __construct($userId, $message)
     {
         $this->user_id = $userId;
-        $this->result = $result;
+        $this->message = $message;
+    }
+
+    public function __get($property)
+    {
+        if (property_exists($this, $property)) {
+            return $this->$property;
+        }
     }
 
     /**

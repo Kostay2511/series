@@ -15,9 +15,9 @@ use Psy\Exception\ErrorException;
 class ParseIMDB extends Command
 {
     /**
-    * The name and signature of the console command.
-    *
-    * @var string
+     * The name and signature of the console command.
+     *
+     * @var string
      */
     protected $signature = 'parse';
 
@@ -144,7 +144,7 @@ class ParseIMDB extends Command
      */
     private function createNewPool($client, $requests, $clientId, $countRequest)
     {
-        $pool = new Pool($client, $requests($clientId, $countRequest, Cache::get('failedUsers')), [
+        return new Pool($client, $requests($clientId, $countRequest, Cache::get('failedUsers')), [
             'concurrency' => 10,
             'fulfilled' => function ($response) use ($client) {
                 try {
@@ -153,9 +153,9 @@ class ParseIMDB extends Command
                     preg_match_all($pattern, $userUri, $userId);
                     $document = new Document($response->getBody()->getContents());
                     $this->getContentDocument($client, $document, $userId['userId'][0], Cache::get($userId['userId'][0]));
-                    $this->line('id = ' . ($userId['userId'][0]) . ' good');
+                    $this->line('id = ' . $userId['userId'][0] . ' good');
                     Cache::forget($userId['userId'][0]);
-                } catch (ErrorException $e){
+                } catch (ErrorException $e) {
                     var_dump($e);
                 }
             },
@@ -165,7 +165,7 @@ class ParseIMDB extends Command
                 preg_match_all($pattern, $uri, $userId);
                 $badProxy = Cache::pull($userId['userId'][0]);
                 $this->deleteProxy($badProxy);
-                $this->line('id = ' . ($userId['userId'][0]) . ' ' . $reason->getMessage());
+                $this->line('id = ' . $userId['userId'][0] . ' ' . $reason->getMessage());
                 if (!stripos($reason->getMessage(), '404 Not Found')) {
                     $failedUsers = Cache::remember('failedUsers', 3600, function () {
                         return [];
@@ -175,7 +175,6 @@ class ParseIMDB extends Command
                 }
             },
         ]);
-        return $pool;
     }
 
     /**
@@ -188,11 +187,11 @@ class ParseIMDB extends Command
     private function getContentDocument($client, $document, $id, $proxy)
     {
         $posts = $document->find('.lister-item-content');
-        $loadMorBtn = $document->first('ipl-load-more ipl-load-more--loaded');
+        $loadMoreBtn = $document->first('ipl-load-more ipl-load-more--loaded');
         while (!empty($loadMoreBtn)) {
-            $loadMore = $document->first('.load-more-data');
+            $loadMoreBtn = $document->first('.load-more-data');
             $this->line('loadmore for ' . $id);
-            $dataKey = $loadMore->getAttribute('data-key');
+            $dataKey = $loadMoreBtn->getAttribute('data-key');
             $this->line('https://www.imdb.com/user/ur' . $id . '/reviews/_ajax?ref_=undefined&paginationKey=' . $dataKey);
             $response = $client
                 ->requestAsync('https://www.imdb.com/user/ur' . $id . '/reviews/_ajax?ref_=undefined&paginationKey=' . $dataKey, $this->requestParams($proxy))
@@ -200,7 +199,7 @@ class ParseIMDB extends Command
             $document = new Document($response->getBody()->getContents());
             $otherPosts = $document->find('.lister-item-content');
             $posts = array_merge($posts, $otherPosts);
-            $loadMore = $document->first('.load-more-data');
+            $loadMoreBtn = $document->first('.load-more-data');
         }
         if (count($posts) > 2) {
             foreach ($posts as $post) {

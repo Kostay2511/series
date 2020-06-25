@@ -8,6 +8,8 @@ use ErrorException;
 
 class KNN
 {
+    const countKNN = 7;
+
     public $paramsSeries;
 
     public function __construct()
@@ -17,10 +19,10 @@ class KNN
 
     /**
      * @param array $curUserRating
-     * @param int $k
+     * @param int $countNeighbors
      * @return array
      */
-    public function similarity(array $curUserRating, $k = 7)
+    public function similarity(array $curUserRating, $countNeighbors = self::countKNN)
     {
         $sumCurUserRating = 0;
         foreach ($curUserRating as $line) {
@@ -46,7 +48,7 @@ class KNN
         }
 
         arsort($simUsers);
-        return array_slice($simUsers, 0, $k, true);
+        return array_slice($simUsers, 0, $countNeighbors, true);
     }
 
     /**
